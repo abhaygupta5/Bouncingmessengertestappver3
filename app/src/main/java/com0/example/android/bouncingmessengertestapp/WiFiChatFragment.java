@@ -80,6 +80,11 @@ public class WiFiChatFragment extends Fragment {
             groupChatManager.tellToEveryone(buffer);
         }
     }
+    public void forGO(byte[] buffer){
+        if(chatManager!=null){
+            chatManager.write(buffer);
+        }
+    }
     /**
      * ArrayAdapter to manage chat messages.
      */
