@@ -128,7 +128,7 @@ public class WiFiServiceDiscoveryActivity extends Activity implements
 
         statusTxtView = (TextView) findViewById(R.id.status_text);
         appendStatus("***** Welcome "+uname+" *****");
-        userList.add(usercode + uname);
+        //userList.add(uname);
         disconnect = (Button)findViewById(R.id.disconnect);
         intentFilter.addAction(WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION);
         intentFilter.addAction(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION);
@@ -185,7 +185,7 @@ public class WiFiServiceDiscoveryActivity extends Activity implements
                                 appendStatus("Disconnected successfully");
                                 startRegistrationAndDiscovery();
                             }
-                            if(chatFragment!=null){
+                           else if(chatFragment!=null){
                                 if (serviceRequest != null)
                                     manager.removeServiceRequest(channel, serviceRequest,
                                             new ActionListener() {
@@ -318,13 +318,15 @@ public class WiFiServiceDiscoveryActivity extends Activity implements
                                 WiFiDevicesAdapter adapter = ((WiFiDevicesAdapter) fragment
                                         .getListAdapter());
                                 WiFiP2pService service = new WiFiP2pService();
-                                service.device = (WifiP2pDevice) srcDevice;
+                                service.device = srcDevice;
                                 service.instanceName = instanceName;
                                 service.serviceRegistrationType = registrationType;
-                                adapter.add(service);
-                                adapter.notifyDataSetChanged();
-                                Log.d(TAG, "onBonjourServiceAvailable "
+                                if(adapter.getPosition(service)==-1){
+                                    adapter.add(service);
+                                    adapter.notifyDataSetChanged();
+                                    Log.d(TAG, "onBonjourServiceAvailable "
                                         + instanceName);
+                                }
                             }
                         }
                     }
@@ -408,27 +410,19 @@ public class WiFiServiceDiscoveryActivity extends Activity implements
                 if(readMessage.startsWith(usercode) && mem_info.equals("Group Owner"))
                 {
                     Log.d(TAG, " username is received to group owner now printing the list" + readMessage);
-                    userList.add(readMessage);
+                    readMessage = stripcodeg(readMessage);
+                    if(!userList.contains(readMessage))
+                        userList.add(readMessage);
                     groupChatManager.setUserList(userList);
-                    (chatFragment).forEveryone(userList.toString().getBytes());
+                    (chatFragment).forEveryone((usercode+userList.toString()).getBytes());
                     printUserList(userList.toString());
                 }
-                else if(readMessage.startsWith("[" + usercode) && mem_info.equals("Client")){
+                else if(readMessage.contains(usercode)){
                     Log.d(TAG, "LIST OF MEMBERS FOUND RECEIVED TO CLIENT " + readMessage);
-                    char[] ch = readMessage.toCharArray();
-                    String s = "";
-                    int i ;
-                    for(i=0; i<ch.length;i++){
-                        if(ch[i] == '#'){
-                            i+=3;
-                            s = "";
-                        }
-                        s = s + ch[i];
-                    }
-                    userList.add(s);
-                    if(i==ch.length){
-                        printUserList(userList.toString());
-                    }
+                    readMessage = stripcode(readMessage);
+                    if(!userList.contains(readMessage) && readMessage!=null)
+                        userList.add(readMessage);
+                    printUserList(userList.toString());
                 }
                 else if (readMessage.startsWith(uname)){
                     //Log.d(TAG, "redundant information will be printed" + readMessage);
@@ -437,7 +431,7 @@ public class WiFiServiceDiscoveryActivity extends Activity implements
                 }
 
                 else {
-                    Log.d(TAG, "NONE OF THE IF OR ELSE IF STATEMENT EXECUTED SO NORMAL MESSAGE");
+                    Log.d(TAG, "NONE OF THE IF OR ELSE IF STATEMENT EXECUTED SO NORMAL MESSAGE"+readMessage);
                     (chatFragment).pushMessage(readMessage);
                 }
                 if(mem_info.equals("Group Owner") && !readMessage.startsWith(usercode)){
@@ -477,6 +471,7 @@ public class WiFiServiceDiscoveryActivity extends Activity implements
         if (p2pInfo.isGroupOwner) {
             Log.d(TAG, "Connected as group owner");
             mem_info = "Group Owner";
+            userList.add(uname);
             try{
             handler = new GroupOwnerSocketHandler(
                     ((MessageTarget) this).getHandler());
@@ -566,5 +561,22 @@ public class WiFiServiceDiscoveryActivity extends Activity implements
             alert.setTitle("permission");
             alert.show();
     }
-
+    public String stripcode(String s){
+        char[] ch = s.toCharArray();
+        String temp="";
+        for(int i = 1;i<ch.length-1;i++){
+            if(!(ch[i]=='#' || ch[i]=='@' || ch[i]=='!' || ch[i]=='['))
+                temp = temp + ch[i];
+        }
+        return temp;
+    }
+    public String stripcodeg(String s){
+        char[] ch = s.toCharArray();
+        String temp="";
+        for(int i = 1;i<ch.length;i++){
+            if(!(ch[i]=='#' || ch[i]=='@' || ch[i]=='!' || ch[i]=='['))
+                temp = temp + ch[i];
+        }
+        return temp;
+    }
 }
