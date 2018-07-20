@@ -1,14 +1,9 @@
 <resources>
-    <string name="app_name">Bouncing Messenger</string>
+    <string name="app_name">New Internet</string>
     <string name="finding_service">Finding local services</string>
     <string name="btn_send">Send</string>
     <string name="txt_hint">Type Message</string>
     <string name="title_activity_contacts">contacts</string>
-    <string name="name_hint">Enter your Name</string>
-    <string name="password_hint">Password</string>
-    <string name="login">Login</string>
-    <string name="sign_up">Sign Up</string>
-    <string name="mobile">Enter your mobile number</string>
     <string name="large_text">
         "Material is the metaphor.\n\n"
 

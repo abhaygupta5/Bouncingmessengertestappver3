@@ -42,8 +42,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import android.net.wifi.WifiManager;
-import android.widget.Toast;
-
 import static android.app.PendingIntent.getActivity;
 
 /**
@@ -75,8 +73,6 @@ public class WiFiServiceDiscoveryActivity extends Activity implements
     public static final String usercode = "#@@!";
     public static String uname = new String();
 
-    private static final String GO = "Group Owner";
-    private final String disconnectMessage = "&^#973^&^##(&#(455DISCONNECTED";
     private ArrayList userList = new ArrayList();
     private Intent starterIntent ;
     private WifiManager wifiManager;
@@ -132,7 +128,7 @@ public class WiFiServiceDiscoveryActivity extends Activity implements
 
         statusTxtView = (TextView) findViewById(R.id.status_text);
         appendStatus("***** Welcome "+uname+" *****");
-        //userList.add(uname);
+        userList.add(usercode + uname);
         disconnect = (Button)findViewById(R.id.disconnect);
         intentFilter.addAction(WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION);
         intentFilter.addAction(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION);
@@ -161,9 +157,69 @@ public class WiFiServiceDiscoveryActivity extends Activity implements
         disconnect.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                disconnectService();
+                if(manager!=null && channel!=null){
+                    manager.removeGroup(channel, new ActionListener() {
+                        @Override
+                        public void onSuccess() {
+                            if(chatFragment!=null && mem_info.equals("Group Owner")){
+                                if (serviceRequest != null)
+                                    manager.removeServiceRequest(channel, serviceRequest,
+                                            new ActionListener() {
+                                                @Override
+                                                public void onSuccess() {
+                                                }
+                                                @Override
+                                                public void onFailure(int arg0) {
+                                                }
+                                            });
+                                mem_info = "";
+                                getFragmentManager().beginTransaction().remove(chatFragment).commit();
+                                Fragment frag = getFragmentManager().findFragmentByTag("services");
+                                if (frag != null) {
+                                    getFragmentManager().beginTransaction().remove(frag).commit();
+                                    servicesList = new WiFiDirectServicesList();
+                                    getFragmentManager().beginTransaction()
+                                            .add(R.id.container_root, servicesList, "services").commit();
+                                }
+                                clearappendstatus();
+                                appendStatus("Disconnected successfully");
+                                startRegistrationAndDiscovery();
+                            }
+                            if(chatFragment!=null){
+                                if (serviceRequest != null)
+                                    manager.removeServiceRequest(channel, serviceRequest,
+                                            new ActionListener() {
+                                                @Override
+                                                public void onSuccess() {
+                                                }
+                                                @Override
+                                                public void onFailure(int arg0) {
+                                                }
+                                            });
+                                mem_info = "";
+                                getFragmentManager().beginTransaction().remove(chatFragment).commit();
+                                Fragment frag = getFragmentManager().findFragmentByTag("services");
+                                if (frag != null) {
+                                    getFragmentManager().beginTransaction().remove(frag).commit();
+                                    servicesList = new WiFiDirectServicesList();
+                                    getFragmentManager().beginTransaction()
+                                            .add(R.id.container_root, servicesList, "services").commit();
+                                }
+                                clearappendstatus();
+                                appendStatus("Disconnected successfully");
+                                startRegistrationAndDiscovery();
+                            }
+                        }
+
+                        @Override
+                        public void onFailure(int reason) {
+                            appendStatus("Disconnect failed. Reason :" + reason);
+                        }
+                    });
+                }
             }
         });
+        disconnect.setVisibility(View.INVISIBLE);
     }
 
     /*public void OnClickButtonListener()
@@ -262,15 +318,13 @@ public class WiFiServiceDiscoveryActivity extends Activity implements
                                 WiFiDevicesAdapter adapter = ((WiFiDevicesAdapter) fragment
                                         .getListAdapter());
                                 WiFiP2pService service = new WiFiP2pService();
-                                service.device = srcDevice;
+                                service.device = (WifiP2pDevice) srcDevice;
                                 service.instanceName = instanceName;
                                 service.serviceRegistrationType = registrationType;
-                                if(adapter.getPosition(service)==-1){
-                                    adapter.add(service);
-                                    adapter.notifyDataSetChanged();
-                                    Log.d(TAG, "onBonjourServiceAvailable "
+                                adapter.add(service);
+                                adapter.notifyDataSetChanged();
+                                Log.d(TAG, "onBonjourServiceAvailable "
                                         + instanceName);
-                                }
                             }
                         }
                     }
@@ -351,48 +405,30 @@ public class WiFiServiceDiscoveryActivity extends Activity implements
                 // construct a string from the valid bytes in the buffer
                 String readMessage = new String(readBuf, 0, msg.arg1);
                 Log.d(TAG, "inside handleMessage"  + readMessage);
-                if(readMessage.startsWith(disconnectMessage)){
-                    Log.d(TAG, "DISCONNECT MESSAGE FOUND");
-                    if(readMessage.contains(usercode)){
-                        readMessage = readMessage.replace(disconnectMessage+usercode,"");
-                        Log.d(TAG, "GOT THE USERNAME"+readMessage);
-                    }
-                    if(mem_info.equals(GO)){
-                        userList.remove(readMessage);
-                        userList.remove(uname);
-                        memberCount=1;
-                        Log.d(TAG, "USERNAME REMOVED"+userList.toString());
-                        if(memberCount<=2){
-                            Log.d(TAG,"disconnecting as GO");
-                            disconnectService();
-                        }
-                        else{
-                            groupChatManager.setUserList(userList);
-                            (chatFragment).forEveryone((usercode+userList.toString()).getBytes());
-                            printUserList(userList.toString());
-                        }
-                    }
-                    else{
-                        Log.d(TAG, "disconnecting as peer");
-                        disconnectService();
-                    }
-                }
-                if(readMessage.startsWith(usercode) && mem_info.equals(GO))
+                if(readMessage.startsWith(usercode) && mem_info.equals("Group Owner"))
                 {
                     Log.d(TAG, " username is received to group owner now printing the list" + readMessage);
-                    readMessage = stripcodeg(readMessage);
-                    if(!userList.contains(readMessage))
-                        userList.add(readMessage);
+                    userList.add(readMessage);
                     groupChatManager.setUserList(userList);
-                    (chatFragment).forEveryone((usercode+userList.toString()).getBytes());
-                    printUserList(userList.toString()+memberCount);
-                }
-                else if(readMessage.contains(usercode)){
-                    Log.d(TAG, "LIST OF MEMBERS FOUND RECEIVED TO CLIENT " + readMessage);
-                    readMessage = stripcode(readMessage);
-                    if(!userList.contains(readMessage) && readMessage!=null)
-                        userList.add(readMessage);
+                    (chatFragment).forEveryone(userList.toString().getBytes());
                     printUserList(userList.toString());
+                }
+                else if(readMessage.startsWith("[" + usercode) && mem_info.equals("Client")){
+                    Log.d(TAG, "LIST OF MEMBERS FOUND RECEIVED TO CLIENT " + readMessage);
+                    char[] ch = readMessage.toCharArray();
+                    String s = "";
+                    int i ;
+                    for(i=0; i<ch.length;i++){
+                        if(ch[i] == '#'){
+                            i+=3;
+                            s = "";
+                        }
+                        s = s + ch[i];
+                    }
+                    userList.add(s);
+                    if(i==ch.length){
+                        printUserList(userList.toString());
+                    }
                 }
                 else if (readMessage.startsWith(uname)){
                     //Log.d(TAG, "redundant information will be printed" + readMessage);
@@ -401,17 +437,17 @@ public class WiFiServiceDiscoveryActivity extends Activity implements
                 }
 
                 else {
-                    Log.d(TAG, "NONE OF THE IF OR ELSE IF STATEMENT EXECUTED SO NORMAL MESSAGE"+readMessage);
+                    Log.d(TAG, "NONE OF THE IF OR ELSE IF STATEMENT EXECUTED SO NORMAL MESSAGE");
                     (chatFragment).pushMessage(readMessage);
                 }
-                if(mem_info.equals(GO) && !readMessage.startsWith(usercode)){
+                if(mem_info.equals("Group Owner") && !readMessage.startsWith(usercode)){
                 Log.d(TAG, "Message will be forwarded by group owner to all members" + readMessage);
                 chatFragment.forEveryone(readMessage.getBytes());
             }
                 break;
             case MY_HANDLE:
                 Object obj = msg.obj;
-                if(mem_info.equals(GO))
+                if(mem_info.equals("Group Owner"))
                     (chatFragment).setGroupChatManager((GroupChatManager) obj);
                 else{
                 (chatFragment).setChatManager((ChatManager) obj);
@@ -440,8 +476,7 @@ public class WiFiServiceDiscoveryActivity extends Activity implements
          */
         if (p2pInfo.isGroupOwner) {
             Log.d(TAG, "Connected as group owner");
-            mem_info = GO;
-            userList.add(uname);
+            mem_info = "Group Owner";
             try{
             handler = new GroupOwnerSocketHandler(
                     ((MessageTarget) this).getHandler());
@@ -490,7 +525,7 @@ public class WiFiServiceDiscoveryActivity extends Activity implements
         statusTxtView.setText(current + "\n" + status);
     }
     public static void clearappendstatus(){
-        statusTxtView.setText("***** Welcome "+uname+" *****");
+        statusTxtView.setText("");
     }
     public void printUserList(String s){
         if(s!=null){
@@ -531,103 +566,5 @@ public class WiFiServiceDiscoveryActivity extends Activity implements
             alert.setTitle("permission");
             alert.show();
     }
-    public String stripcode(String s){
-        char[] ch = s.toCharArray();
-        String temp="";
-        for(int i = 1;i<ch.length-1;i++){
-            if(!(ch[i]=='#' || ch[i]=='@' || ch[i]=='!' || ch[i]=='['))
-                temp = temp + ch[i];
-        }
-        return temp;
-    }
-    public String stripcodeg(String s){
-        char[] ch = s.toCharArray();
-        String temp="";
-        for(int i = 1;i<ch.length;i++){
-            if(!(ch[i]=='#' || ch[i]=='@' || ch[i]=='!' || ch[i]=='['))
-                temp = temp + ch[i];
-        }
-        return temp;
-    }
-    public void disconnectService(){
-        if(manager!=null && channel!=null){
-            if(mem_info.equals(GO)){
-                chatFragment.forEveryone(disconnectMessage.getBytes());
-                Log.d(TAG,"sending disconnect message");
-            }
-            else{
-                chatFragment.forGO((disconnectMessage+usercode+uname).getBytes());
-                Log.d(TAG,"sending disconnect message client");
-            }
-            manager.removeGroup(channel, new ActionListener() {
-                @Override
-                public void onSuccess() {
-                    if(chatFragment!=null && mem_info.equals(GO)){
-                        if (serviceRequest != null)
-                            manager.removeServiceRequest(channel, serviceRequest,
-                                    new ActionListener() {
-                                        @Override
-                                        public void onSuccess() {
-                                            Log.d(TAG, "on button click disconnect the service request " +
-                                                    "of GO removed successfully");
-                                        }
-                                        @Override
-                                        public void onFailure(int arg0) {
-                                            Log.d(TAG,"on disconnect failed to remove service request of GO");
-                                        }
-                                    });
-                        mem_info = "";
-                        getFragmentManager().beginTransaction().remove(chatFragment).commit();
-                        Fragment frag = getFragmentManager().findFragmentByTag("services");
-                        if (frag != null) {
-                            getFragmentManager().beginTransaction().remove(frag).commit();
-                            servicesList = new WiFiDirectServicesList();
-                            getFragmentManager().beginTransaction()
-                                    .add(R.id.container_root, servicesList, "services").commit();
-                        }
-                        clearappendstatus();
-                        Toast.makeText(WiFiServiceDiscoveryActivity.this, "DISCONNECTED SUCCESSFULLY",
-                                Toast.LENGTH_SHORT).show();
-                        startRegistrationAndDiscovery();
-                    }
-                    else if(chatFragment!=null){
-                        if (serviceRequest != null)
-                            manager.removeServiceRequest(channel, serviceRequest,
-                                    new ActionListener() {
-                                        @Override
-                                        public void onSuccess() {
-                                            Log.d(TAG, "on disconnect the service request " +
-                                                    "of client removed successfully");
-                                        }
-                                        @Override
-                                        public void onFailure(int arg0) {
-                                            Log.d(TAG, "on disconnect the service request " +
-                                                    "of client removed failed");
-                                        }
-                                    });
-                        mem_info = "";
-                        userList.clear();
-                        getFragmentManager().beginTransaction().remove(chatFragment).commit();
-                        Fragment frag = getFragmentManager().findFragmentByTag("services");
-                        if (frag != null) {
-                            getFragmentManager().beginTransaction().remove(frag).commit();
-                            servicesList = new WiFiDirectServicesList();
-                            getFragmentManager().beginTransaction()
-                                    .add(R.id.container_root, servicesList, "services").commit();
-                        }
-                        clearappendstatus();
-                        Toast.makeText(WiFiServiceDiscoveryActivity.this, "DISCONNECTED SUCCESSFULLY",
-                                Toast.LENGTH_SHORT).show();
-                        startRegistrationAndDiscovery();
-                    }
-                }
 
-                @Override
-                public void onFailure(int reason) {
-                    appendStatus("Disconnect failed. Reason :" + reason);
-                }
-            });
-            disconnect.setVisibility(View.INVISIBLE);
-        }
-    }
 }
