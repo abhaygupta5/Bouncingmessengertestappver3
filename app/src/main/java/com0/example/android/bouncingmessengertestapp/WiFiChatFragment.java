@@ -80,11 +80,6 @@ public class WiFiChatFragment extends Fragment {
             groupChatManager.tellToEveryone(buffer);
         }
     }
-    public void forGO(byte[] buffer){
-        if(chatManager!=null){
-            chatManager.write(buffer);
-        }
-    }
     /**
      * ArrayAdapter to manage chat messages.
      */
@@ -111,11 +106,9 @@ public class WiFiChatFragment extends Fragment {
                     if (message.startsWith("Me: ")) {
                         nameText.setTextAppearance(getActivity(),
                                 R.style.normalText);
-                        nameText.setBackgroundResource(R.color.sender);
                     } else {
                         nameText.setTextAppearance(getActivity(),
                                 R.style.boldText);
-                        nameText.setBackgroundResource(R.color.receiver);
                     }
                 }
             }
